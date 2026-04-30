@@ -1,6 +1,5 @@
 import argparse
 import os
-import subprocess
 import sys
 
 import numpy as np
@@ -11,10 +10,6 @@ sys.dont_write_bytecode = True
 SURVIVAL_OUTPUT_DIR = os.path.join("results", "survival_outputs")
 
 
-def run_command(command):
-    subprocess.check_call(command, shell=True)
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -23,7 +18,6 @@ def parse_args():
         help="Prediction .npz filename under results/survival_outputs, or a full path.",
     )
     parser.add_argument("--output-csv", default=None)
-    parser.add_argument("--skip-install", action="store_true")
     return parser.parse_args()
 
 
@@ -42,9 +36,7 @@ def scalar_text(value):
 def main():
     args = parse_args()
 
-    if not args.skip_install:
-        run_command(f'"{sys.executable}" -m pip install SurvivalEVAL')
-
+    # Load saved model outputs and the event/time arrays used for evaluation.
     input_path = survival_output_path(args.input)
     outputs = np.load(input_path, allow_pickle=False)
     t_test = outputs["t_test"]
@@ -52,6 +44,7 @@ def main():
     t_train_ref = outputs["t_train_ref"]
     e_train_ref = outputs["e_train_ref"]
 
+    # Baseline AFT outputs are survival curves over time coordinates.
     evl_base = SurvivalEvaluator(
         outputs["baseline_survival"],
         outputs["baseline_time_coordinates"],
@@ -63,6 +56,7 @@ def main():
         interpolation="Pchip",
     )
 
+    # CSD and CSD-iPOT outputs are calibrated quantile predictions.
     evl_csd = QuantileRegEvaluator(
         outputs["csd_q_preds"],
         outputs["csd_q_levels"],
@@ -85,6 +79,7 @@ def main():
         interpolation="Pchip",
     )
 
+    # Report the same metrics for baseline and calibrated outputs.
     results = pd.DataFrame(
         [
             {
@@ -105,6 +100,7 @@ def main():
         ]
     )
 
+    print(f"{os.path.basename(input_path)}:")
     print(results)
 
     if args.output_csv:
