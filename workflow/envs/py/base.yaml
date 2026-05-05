@@ -1,0 +1,8 @@
+name: base
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - scikit-learn=1.5.2
+  - pandas=2.2.3

@@ -1,0 +1,12 @@
+name: single_split_train
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas=2.2.3
+  - scikit-learn=1.5.2
+  - lifelines
+  - pip
