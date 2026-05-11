@@ -75,7 +75,7 @@ def parse_args():
 def survival_output_path(filename_or_path):
     if not filename_or_path.lower().endswith(".npz"):
         filename_or_path = f"{filename_or_path}.npz"
-    if os.path.isabs(filename_or_path):
+    if os.path.isabs(filename_or_path) or os.path.dirname(filename_or_path):
         return filename_or_path
     return os.path.join(SURVIVAL_OUTPUT_DIR, filename_or_path)
 

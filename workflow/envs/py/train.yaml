@@ -10,3 +10,5 @@ dependencies:
   - scikit-learn=1.5.2
   - lifelines
   - pip
+  - pip:
+      - git+https://github.com/ErdemErkal/package_MakeSurvivalCalibratedAgain.git

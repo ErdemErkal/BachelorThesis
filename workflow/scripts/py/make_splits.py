@@ -11,15 +11,31 @@ def main(
     data_paths, split_paths, seed, n_splits, do_shuffle, n_repeats, k_time_bins
 ) -> int:
     assert len(data_paths) == len(split_paths)
-    kf = RepeatedStratifiedKFold(
-        n_repeats=n_repeats,
-        n_splits=n_splits,
-        shuffle=do_shuffle,
-        random_state=seed,
-    )
+    if n_repeats == 1:
+        kf = StratifiedKFold(
+            n_splits=n_splits,
+            shuffle=do_shuffle,
+            random_state=seed if do_shuffle else None,
+        )
+    else:
+        if not do_shuffle:
+            raise ValueError("Repeated stratified splits require do_shuffle=True.")
+        kf = RepeatedStratifiedKFold(
+            n_repeats=n_repeats,
+            n_splits=n_splits,
+            random_state=seed,
+        )
     for data_ix in range(len(data_paths)):
         dataset = pd.read_csv(data_paths[data_ix])
-        event = dataset["event"].values
+        if "event" in dataset.columns:
+            event_col = "event"
+        elif "status" in dataset.columns:
+            event_col = "status"
+        else:
+            raise ValueError(
+                f"{data_paths[data_ix]} must contain an 'event' or 'status' column."
+            )
+        event = dataset[event_col].values
         time = dataset["time"].values
 
         # Calculate time quantiles separately for censored and uncensored to prevent
