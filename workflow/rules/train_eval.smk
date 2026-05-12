@@ -35,5 +35,6 @@ rule single_split_eval:
         """
         python workflow/scripts/py/single_split_eval.py \
             --input {input.npz} \
+            --seed {wildcards.seed} \
             --output-csv {output.csv} > {log} 2>&1
         """

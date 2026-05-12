@@ -7,6 +7,9 @@ dependencies:
   - python=3.10
   - numpy
   - pandas=2.2.3
+  - scikit-learn=1.5.2
+  - tqdm
   - pip
   - pip:
-    - SurvivalEVAL
+      - SurvivalEVAL
+      - git+https://github.com/ErdemErkal/package_MakeSurvivalCalibratedAgain.git

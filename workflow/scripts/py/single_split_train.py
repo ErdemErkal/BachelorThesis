@@ -294,6 +294,7 @@ def main():
         csd_q_preds=q_preds_csd,
         ipot_q_levels=q_levels_ipot,
         ipot_q_preds=q_preds_ipot,
+        x_test=x_test,
         t_test=t_test,
         e_test=e_test,
         t_train_ref=t_train_ref,
