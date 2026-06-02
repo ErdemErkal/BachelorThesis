@@ -4,31 +4,49 @@ rule single_split_train:
         splits="results/create_splits/{dataset}.json",
         test_data="results/create_distribution_shift/{dataset}_split_{split_id}_ess_{ess}.tsv"
     output:
-        npz="results/survival_outputs/{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{model}.npz"
+        npz=(
+            "results/survival_outputs/"
+            "{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{run_label}.npz"
+        )
     log:
-        "logs/single_split_train/{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{model}.log"
+        (
+            "logs/single_split_train/"
+            "{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{run_label}.log"
+        )
+    params:
+        script=train_script_for,
+        model_arg=model_for
     conda:
         "../envs/py/train.yaml"
     shell:
         """
-        python workflow/scripts/py/single_split_train.py \
+        python {params.script} \
             --dataset {input.dataset} \
             --splits {input.splits} \
             --test-data {input.test_data} \
             --split-id {wildcards.split_id} \
             --ess {wildcards.ess} \
             --seed {wildcards.seed} \
-            --model {wildcards.model} \
+            --model {params.model_arg} \
             --output {output.npz} > {log} 2>&1
         """
 
 rule single_split_eval:
     input:
-        npz="results/survival_outputs/{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{model}.npz"
+        npz=(
+            "results/survival_outputs/"
+            "{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{run_label}.npz"
+        )
     output:
-        csv="results/eval_metrics/{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{model}.csv"
+        csv=(
+            "results/eval_metrics/"
+            "{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{run_label}.csv"
+        )
     log:
-        "logs/single_split_eval/{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{model}.log"
+        (
+            "logs/single_split_eval/"
+            "{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{run_label}.log"
+        )
     conda:
         "../envs/py/eval.yaml"
     shell:

@@ -1,4 +1,4 @@
-"""Create pooled calibration violin plots from eval metric CSV files."""
+"""Create calibration violin plots from eval metric CSV files."""
 
 from __future__ import annotations
 
@@ -12,15 +12,21 @@ import seaborn as sns
 
 
 METRIC_RE = re.compile(
-    r"^(?P<dataset>.+)_split_(?P<split_id>\d+)_ess_(?P<ess>[^_]+)_seed_(?P<seed>\d+)_(?P<model>.+)\.csv$"
+    r"^(?P<dataset>.+)_split_(?P<split_id>\d+)_ess_(?P<ess>[^_]+)"
+    r"_seed_(?P<seed>\d+)_(?P<run_label>.+)\.csv$"
 )
+
+DEFAULT_WEIGHTING_SUFFIXES = {
+    "unweighted": "",
+    "weighted": "_weighted",
+}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Read results/eval_metrics CSVs and create calibration violin "
-            "plot for each model, pooling all datasets together."
+            "Read results/eval_metrics CSVs and create calibration violin plots "
+            "for each model, both per dataset and pooled across datasets."
         )
     )
     parser.add_argument(
@@ -77,6 +83,20 @@ def parse_args() -> argparse.Namespace:
         help="Limit plotting to one model. Can be repeated.",
     )
     parser.add_argument(
+        "--weighting",
+        action="append",
+        help="Limit plotting to one weighting mode. Can be repeated.",
+    )
+    parser.add_argument(
+        "--weighting-suffix",
+        action="append",
+        metavar="MODE=SUFFIX",
+        help=(
+            "Map a weighting mode to its filename suffix. Can be repeated. "
+            "Defaults to unweighted= and weighted=_weighted."
+        ),
+    )
+    parser.add_argument(
         "--threshold",
         default=0.05,
         type=float,
@@ -89,12 +109,50 @@ def safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
 
 
+def parse_weighting_suffixes(pairs: list[str] | None) -> dict[str, str]:
+    if not pairs:
+        return DEFAULT_WEIGHTING_SUFFIXES.copy()
+
+    suffixes: dict[str, str] = {}
+    for pair in pairs:
+        if "=" not in pair:
+            raise ValueError(f"Expected weighting suffix as MODE=SUFFIX, got {pair!r}")
+        mode, suffix = pair.split("=", 1)
+        if not mode:
+            raise ValueError(f"Weighting mode cannot be empty in {pair!r}")
+        suffixes[mode] = suffix
+    return suffixes
+
+
+def split_run_label(run_label: str, weighting_suffixes: dict[str, str]) -> tuple[str, str]:
+    non_empty_suffixes = sorted(
+        (
+            (mode, suffix)
+            for mode, suffix in weighting_suffixes.items()
+            if suffix
+        ),
+        key=lambda item: len(item[1]),
+        reverse=True,
+    )
+    for mode, suffix in non_empty_suffixes:
+        if run_label.endswith(suffix):
+            return run_label[: -len(suffix)], mode
+
+    for mode, suffix in weighting_suffixes.items():
+        if suffix == "":
+            return run_label, mode
+
+    return run_label, "unweighted"
+
+
 def read_eval_metrics(
     input_dir: Path,
     pattern: str,
     metric_candidates: list[str],
+    weighting_suffixes: dict[str, str],
     datasets: set[str] | None = None,
     models: set[str] | None = None,
+    weightings: set[str] | None = None,
 ) -> pd.DataFrame:
     rows: list[pd.DataFrame] = []
 
@@ -104,9 +162,12 @@ def read_eval_metrics(
             continue
 
         metadata = match.groupdict()
+        model, weighting = split_run_label(metadata["run_label"], weighting_suffixes)
         if datasets and metadata["dataset"] not in datasets:
             continue
-        if models and metadata["model"] not in models:
+        if models and model not in models:
+            continue
+        if weightings and weighting not in weightings:
             continue
 
         metrics = pd.read_csv(csv_path)
@@ -119,11 +180,29 @@ def read_eval_metrics(
         metrics["ess"] = float(metadata["ess"])
         metrics["ess_label"] = metadata["ess"]
         metrics["seed"] = int(metadata["seed"])
-        metrics["model"] = metadata["model"]
+        metrics["model"] = model
+        metrics["weighting"] = weighting
+        metrics["run_label"] = metadata["run_label"]
         metrics["source_file"] = csv_path.name
         for metric_col in metric_cols:
             metrics[metric_col] = pd.to_numeric(metrics[metric_col], errors="coerce")
-        rows.append(metrics[["method", *metric_cols, "dataset", "split_id", "ess", "ess_label", "seed", "model", "source_file"]])
+        rows.append(
+            metrics[
+                [
+                    "method",
+                    *metric_cols,
+                    "dataset",
+                    "split_id",
+                    "ess",
+                    "ess_label",
+                    "seed",
+                    "model",
+                    "weighting",
+                    "run_label",
+                    "source_file",
+                ]
+            ]
+        )
 
     if not rows:
         raise ValueError(
@@ -150,7 +229,7 @@ def metric_label(metric: str) -> str:
     return labels.get(metric, metric)
 
 
-def plot_model(
+def plot_model_scope(
     data: pd.DataFrame,
     model: str,
     metric: str,
@@ -159,10 +238,14 @@ def plot_model(
     dpi: int,
     ess_order: str,
     threshold: float,
+    dataset: str | None = None,
 ) -> Path:
     subset = data[data["model"] == model].dropna(subset=[metric]).copy()
+    if dataset is not None:
+        subset = subset[subset["dataset"] == dataset]
     if subset.empty:
-        raise ValueError(f"No finite {metric} values found for model {model}")
+        scope = f"{model} / {dataset}" if dataset is not None else model
+        raise ValueError(f"No finite {metric} values found for {scope}")
 
     reverse = ess_order == "desc"
     ess_values = sorted(subset["ess"].unique(), reverse=reverse)
@@ -205,7 +288,16 @@ def plot_model(
         ax.axhline(threshold, color="0.25", linestyle="--", linewidth=0.9, alpha=0.7)
 
     n_datasets = subset["dataset"].nunique()
-    ax.set_title(f"{model} - {metric_label(metric)} - pooled across {n_datasets} dataset(s)")
+    if dataset is None:
+        scope_label = f"pooled across {n_datasets} dataset(s)"
+        output_stem = f"{safe_name(model)}_pooled_{safe_name(metric)}_violin"
+    else:
+        scope_label = dataset
+        output_stem = (
+            f"{safe_name(model)}_{safe_name(dataset)}"
+            f"_{safe_name(metric)}_violin"
+        )
+    ax.set_title(f"{model} - {metric_label(metric)} - {scope_label}")
     ax.set_xlabel("ESS ratio")
     ax.set_ylabel(metric_label(metric))
     if metric == "D_CAL_pvalue":
@@ -217,7 +309,7 @@ def plot_model(
         ax.legend(handles, labels, title="Method", loc="best", frameon=False)
 
     fig.tight_layout()
-    output_path = output_dir / f"{safe_name(model)}_pooled_{safe_name(metric)}_violin.{output_format}"
+    output_path = output_dir / f"{output_stem}.{output_format}"
     fig.savefig(output_path, dpi=dpi if output_format == "png" else None)
     plt.close(fig)
     return output_path
@@ -226,12 +318,15 @@ def plot_model(
 def main() -> None:
     args = parse_args()
     requested_metrics = args.metric or ["D_CAL_pvalue", "WS_cal"]
+    weighting_suffixes = parse_weighting_suffixes(args.weighting_suffix)
     data = read_eval_metrics(
         args.input_dir,
         args.pattern,
         requested_metrics,
+        weighting_suffixes=weighting_suffixes,
         datasets=set(args.dataset) if args.dataset else None,
         models=set(args.model) if args.model else None,
+        weightings=set(args.weighting) if args.weighting else None,
     )
     metrics = available_metrics(data, requested_metrics)
 
@@ -242,8 +337,23 @@ def main() -> None:
         if metric_data.empty:
             continue
         for model in sorted(metric_data["model"].unique()):
+            model_data = metric_data[metric_data["model"] == model]
+            for dataset in sorted(model_data["dataset"].unique()):
+                written.append(
+                    plot_model_scope(
+                        data=metric_data,
+                        model=model,
+                        dataset=dataset,
+                        metric=metric,
+                        output_dir=args.output_dir,
+                        output_format=args.format,
+                        dpi=args.dpi,
+                        ess_order=args.ess_order,
+                        threshold=args.threshold if metric == "D_CAL_pvalue" else -1,
+                    )
+                )
             written.append(
-                plot_model(
+                plot_model_scope(
                     data=metric_data,
                     model=model,
                     metric=metric,

@@ -5,6 +5,16 @@ do_shuffle: True
 n_repeats: 5
 subsample_ratio: 0.5
 k_time_bins: 3
+models: ["AFT"]
+weighting_modes: ["unweighted", "weighted"]
+
+weighting_suffixes:
+  unweighted: ""
+  weighted: "_weighted"
+
+train_scripts:
+  unweighted: "workflow/scripts/py/single_split_train.py"
+  weighted: "workflow/scripts/py/single_split_train_weighted.py"
 
 # Data sources
 repo_url: "https://github.com/slds-lmu/paper_2023_survival_benchmark"
