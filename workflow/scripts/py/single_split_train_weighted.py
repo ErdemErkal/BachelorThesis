@@ -253,10 +253,8 @@ def main():
             weights = self.density_ratio(x)
 
             if n_sample is not None:
-                quantile_predictions = np.repeat(
-                    quantile_predictions, n_sample, axis=0
-                )
-                weights = np.repeat(weights, n_sample)
+                quantile_predictions = np.repeat(quantile_predictions, n_sample, axis=0)
+                weights = np.repeat(weights, n_sample) / n_sample
 
             if quantile_predictions.shape[0] != y.shape[0]:
                 raise ValueError("Sample size does not match.")
