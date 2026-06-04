@@ -1,5 +1,6 @@
 configfile: "config/config.yaml"
 
+
 DEFAULT_TRAIN_SCRIPTS = {
     "unweighted": "workflow/scripts/py/single_split_train.py",
     "weighted": "workflow/scripts/py/single_split_train_weighted.py",
@@ -23,13 +24,14 @@ PLOT_OUTPUT_DIR = "results/plots/eval_violin"
 PLOT_PATTERN = config.get("plot_pattern", "*.csv")
 PLOT_METRIC_ARGS = " ".join(f"--metric {metric}" for metric in PLOT_METRICS)
 PLOT_WEIGHTING_SUFFIX_ARGS = " ".join(
-    f"--weighting-suffix {mode}={WEIGHTING_SUFFIXES[mode]}"
-    for mode in WEIGHTING_MODES
+    f"--weighting-suffix {mode}={WEIGHTING_SUFFIXES[mode]}" for mode in WEIGHTING_MODES
 )
 
 DATASET_OUTPUT = "results/datasets/{dataset}.csv"
 SPLIT_OUTPUT = "results/create_splits/{dataset}.json"
-SHIFT_OUTPUT = "results/create_distribution_shift/{dataset}_split_{split_ix}_ess_{ess_ratio}.tsv"
+SHIFT_OUTPUT = (
+    "results/create_distribution_shift/{dataset}_split_{split_ix}_ess_{ess_ratio}.tsv"
+)
 TRAIN_OUTPUT = (
     "results/survival_outputs/"
     "{dataset}_split_{split_id}_ess_{ess}_seed_{seed}_{run_label}.npz"
@@ -42,6 +44,7 @@ PLOT_OUTPUT = PLOT_OUTPUT_DIR + "/{model}_pooled_{metric}_violin.{plot_format}"
 DATASET_PLOT_OUTPUT = (
     PLOT_OUTPUT_DIR + "/{model}_{dataset}_{metric}_violin.{plot_format}"
 )
+
 
 wildcard_constraints:
     split_id=r"\d+",
@@ -88,89 +91,12 @@ def model_for(wildcards):
     return run_for(wildcards)["model"]
 
 
-DATASET_TARGETS = expand(
-    DATASET_OUTPUT,
-    dataset=DATASETS,
-)
-
-SPLIT_TARGETS = expand(
-    SPLIT_OUTPUT,
-    dataset=DATASETS,
-)
-
-SHIFT_TARGETS = expand(
-    SHIFT_OUTPUT,
-    dataset=DATASETS,
-    split_ix=SPLIT_IDS,
-    ess_ratio=ESS_RATIOS,
-)
-
-FROZEN_DATA_TARGETS = DATASET_TARGETS + SPLIT_TARGETS + SHIFT_TARGETS
-
-TRAIN_TARGETS = expand(
-    TRAIN_OUTPUT,
-    dataset=DATASETS,
-    split_id=SPLIT_IDS,
-    ess=ESS_RATIOS,
-    seed=SEEDS,
-    run_label=RUN_LABELS,
-)
-
-EVAL_TARGETS = expand(
-    EVAL_OUTPUT,
-    dataset=DATASETS,
-    split_id=SPLIT_IDS,
-    ess=ESS_RATIOS,
-    seed=SEEDS,
-    run_label=RUN_LABELS,
-)
-
-POOLED_PLOT_TARGETS = expand(
-    PLOT_OUTPUT,
-    model=MODELS,
-    metric=PLOT_METRICS,
-    plot_format=[PLOT_FORMAT],
-)
-
-DATASET_PLOT_TARGETS = expand(
-    DATASET_PLOT_OUTPUT,
-    model=MODELS,
-    dataset=DATASETS,
-    metric=PLOT_METRICS,
-    plot_format=[PLOT_FORMAT],
-)
-
 PLOT_TARGETS = POOLED_PLOT_TARGETS + DATASET_PLOT_TARGETS
 
 
 rule all:
     input:
-        PLOT_TARGETS
-
-
-rule frozen_data:
-    input:
-        FROZEN_DATA_TARGETS
-
-
-rule shifts:
-    input:
-        SHIFT_TARGETS
-
-
-rule train:
-    input:
-        TRAIN_TARGETS
-
-
-rule eval:
-    input:
-        EVAL_TARGETS
-
-
-rule plot:
-    input:
-        PLOT_TARGETS
+        PLOT_TARGETS,
 
 
 include: "workflow/rules/train_eval.smk"
