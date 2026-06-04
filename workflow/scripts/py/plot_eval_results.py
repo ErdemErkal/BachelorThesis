@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-
 METRIC_RE = re.compile(
     r"^(?P<dataset>.+)_split_(?P<split_id>\d+)_ess_(?P<ess>[^_]+)"
     r"_seed_(?P<seed>\d+)_(?P<run_label>.+)\.csv$"
@@ -124,13 +123,11 @@ def parse_weighting_suffixes(pairs: list[str] | None) -> dict[str, str]:
     return suffixes
 
 
-def split_run_label(run_label: str, weighting_suffixes: dict[str, str]) -> tuple[str, str]:
+def split_run_label(
+    run_label: str, weighting_suffixes: dict[str, str]
+) -> tuple[str, str]:
     non_empty_suffixes = sorted(
-        (
-            (mode, suffix)
-            for mode, suffix in weighting_suffixes.items()
-            if suffix
-        ),
+        ((mode, suffix) for mode, suffix in weighting_suffixes.items() if suffix),
         key=lambda item: len(item[1]),
         reverse=True,
     )
@@ -216,7 +213,9 @@ def read_eval_metrics(
 def available_metrics(data: pd.DataFrame, requested_metrics: list[str]) -> list[str]:
     metrics = [metric for metric in requested_metrics if metric in data.columns]
     if not metrics:
-        raise ValueError(f"None of the requested metric columns exist: {requested_metrics}")
+        raise ValueError(
+            f"None of the requested metric columns exist: {requested_metrics}"
+        )
     return metrics
 
 
@@ -294,8 +293,7 @@ def plot_model_scope(
     else:
         scope_label = dataset
         output_stem = (
-            f"{safe_name(model)}_{safe_name(dataset)}"
-            f"_{safe_name(metric)}_violin"
+            f"{safe_name(model)}_{safe_name(dataset)}" f"_{safe_name(metric)}_violin"
         )
     ax.set_title(f"{model} - {metric_label(metric)} - {scope_label}")
     ax.set_xlabel("ESS ratio")

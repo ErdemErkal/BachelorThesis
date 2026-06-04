@@ -26,7 +26,7 @@ tempfile.TemporaryDirectory = QuietTemporaryDirectory
 
 import numpy as np
 import pandas as pd
-from icp import CSDiPOT, ConformalSurvDist
+from icp import ConformalSurvDist, CSDiPOT
 from icp.scorer import QuantileRegressionNC, SurvivalPredictionNC
 from lifelines.fitters.weibull_aft_fitter import WeibullAFTFitter
 from sklearn.linear_model import LogisticRegression
@@ -192,9 +192,7 @@ def fit_density_ratio_model(source_features, target_features, seed):
     source_x = source_features.values
     target_x = target_features.values
     x_weight = np.vstack([source_x, target_x])
-    y_weight = np.concatenate(
-        [np.zeros(source_x.shape[0]), np.ones(target_x.shape[0])]
-    )
+    y_weight = np.concatenate([np.zeros(source_x.shape[0]), np.ones(target_x.shape[0])])
 
     weight_model = LogisticRegression(max_iter=1000, random_state=seed)
     weight_model.fit(x_weight, y_weight)
@@ -308,12 +306,12 @@ def main():
                 method=self.args.mono_method,
                 seed=self.args.seed,
             )
-            assert np.all(quantile_predictions >= 0), (
-                "Quantile predictions contain negative."
-            )
-            assert check_monotonicity(quantile_predictions), (
-                "Quantile predictions are not monotonic."
-            )
+            assert np.all(
+                quantile_predictions >= 0
+            ), "Quantile predictions contain negative."
+            assert check_monotonicity(
+                quantile_predictions
+            ), "Quantile predictions are not monotonic."
             return quantile_predictions
 
     class PreFitSurvivalPredictionNC(SurvivalPredictionNC):

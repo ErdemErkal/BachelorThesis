@@ -26,7 +26,7 @@ tempfile.TemporaryDirectory = QuietTemporaryDirectory
 
 import numpy as np
 import pandas as pd
-from icp import CSDiPOT, ConformalSurvDist
+from icp import ConformalSurvDist, CSDiPOT
 from icp.scorer import QuantileRegressionNC, SurvivalPredictionNC
 from lifelines.fitters.weibull_aft_fitter import WeibullAFTFitter
 from sklearn.preprocessing import StandardScaler
