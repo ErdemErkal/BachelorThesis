@@ -282,8 +282,14 @@ def main():
 
                 threshold = (1 - level) * (cal_weight_sum + test_weights)
                 idx = np.searchsorted(sorted_weight_cdf, threshold, side="left")
-                idx = np.clip(idx, 0, sorted_scores.shape[0] - 1)
-                errors[:, j] = sorted_scores[idx]
+
+                out_of_bounds = idx == sorted_scores.shape[0]
+
+                idx_safe = np.clip(idx, 0, sorted_scores.shape[0] - 1)
+
+                error_j = sorted_scores[idx_safe]
+                error_j[out_of_bounds] = np.inf
+                errors[:, j] = error_j
             return errors
 
         def predict(
