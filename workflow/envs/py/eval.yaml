@@ -4,12 +4,12 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.10
-  - numpy
+  - python=3.10.20
+  - numpy=2.2.6
   - pandas=2.2.3
   - scikit-learn=1.5.2
-  - tqdm
-  - pip
+  - tqdm=4.67.3
+  - pip=26.1.1
   - pip:
-      - SurvivalEVAL
-      - git+https://github.com/ErdemErkal/package_MakeSurvivalCalibratedAgain.git
+      - SurvivalEVAL==0.6.1
+      - git+https://github.com/ErdemErkal/package_MakeSurvivalCalibratedAgain.git@d79a2fc62868d867f3b240025de23ffde555fa52

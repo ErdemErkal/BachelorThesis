@@ -4,11 +4,11 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.10
-  - numpy
+  - python=3.10.20
+  - numpy=2.2.6
   - pandas=2.2.3
   - scikit-learn=1.5.2
-  - lifelines
-  - pip
+  - lifelines=0.30.0
+  - pip=26.1.1
   - pip:
-      - git+https://github.com/ErdemErkal/package_MakeSurvivalCalibratedAgain.git
+      - git+https://github.com/ErdemErkal/package_MakeSurvivalCalibratedAgain.git@d79a2fc62868d867f3b240025de23ffde555fa52

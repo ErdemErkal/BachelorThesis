@@ -91,7 +91,27 @@ def model_for(wildcards):
     return run_for(wildcards)["model"]
 
 
-PLOT_TARGETS = POOLED_PLOT_TARGETS + DATASET_PLOT_TARGETS
+EVAL_TARGETS = expand(
+    EVAL_OUTPUT,
+    dataset=DATASETS,
+    split_id=SPLIT_IDS,
+    ess=ESS_RATIOS,
+    seed=SEEDS,
+    run_label=RUN_LABELS,
+)
+
+PLOT_TARGETS = expand(
+    PLOT_OUTPUT,
+    model=MODELS,
+    metric=PLOT_METRICS,
+    plot_format=[PLOT_FORMAT],
+) + expand(
+    DATASET_PLOT_OUTPUT,
+    model=MODELS,
+    dataset=DATASETS,
+    metric=PLOT_METRICS,
+    plot_format=[PLOT_FORMAT],
+)
 
 
 rule all:

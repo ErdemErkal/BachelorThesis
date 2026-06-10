@@ -4,7 +4,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.10.20
+  - numpy=2.2.6
   - pandas=2.2.3
-  - matplotlib
-  - seaborn
+  - matplotlib=3.10.9
+  - seaborn=0.13.2
