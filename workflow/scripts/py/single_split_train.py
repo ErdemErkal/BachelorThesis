@@ -26,7 +26,7 @@ tempfile.TemporaryDirectory = QuietTemporaryDirectory
 
 import numpy as np
 import pandas as pd
-from icp import CSDiPOT, ConformalSurvDist
+from icp import ConformalSurvDist, CSDiPOT
 from icp.scorer import QuantileRegressionNC, SurvivalPredictionNC
 from lifelines.fitters.weibull_aft_fitter import WeibullAFTFitter
 from sklearn.preprocessing import StandardScaler
@@ -75,7 +75,7 @@ def parse_args():
 def survival_output_path(filename_or_path):
     if not filename_or_path.lower().endswith(".npz"):
         filename_or_path = f"{filename_or_path}.npz"
-    if os.path.isabs(filename_or_path):
+    if os.path.isabs(filename_or_path) or os.path.dirname(filename_or_path):
         return filename_or_path
     return os.path.join(SURVIVAL_OUTPUT_DIR, filename_or_path)
 
@@ -294,6 +294,7 @@ def main():
         csd_q_preds=q_preds_csd,
         ipot_q_levels=q_levels_ipot,
         ipot_q_preds=q_preds_ipot,
+        x_test=x_test,
         t_test=t_test,
         e_test=e_test,
         t_train_ref=t_train_ref,
