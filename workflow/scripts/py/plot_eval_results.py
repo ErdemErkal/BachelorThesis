@@ -50,7 +50,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         help=(
             "Metric column to plot. Can be repeated. If omitted, plots "
-            "D_CAL_pvalue and WS_cal when available."
+            "D_CAL_statistic and WS_cal when available."
         ),
     )
     parser.add_argument(
@@ -222,6 +222,7 @@ def available_metrics(data: pd.DataFrame, requested_metrics: list[str]) -> list[
 def metric_label(metric: str) -> str:
     labels = {
         "D_CAL_pvalue": "D-calibration p-value",
+        "D_CAL_statistic": "D-calibration test statistic",
         "WS_cal": "Worst-slab calibration score",
         "WorstSlab_D_CAL": "Worst-slab D-calibration score",
     }
@@ -315,7 +316,7 @@ def plot_model_scope(
 
 def main() -> None:
     args = parse_args()
-    requested_metrics = args.metric or ["D_CAL_pvalue", "WS_cal"]
+    requested_metrics = args.metric or ["D_CAL_statistic", "WS_cal"]
     weighting_suffixes = parse_weighting_suffixes(args.weighting_suffix)
     data = read_eval_metrics(
         args.input_dir,

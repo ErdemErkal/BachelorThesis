@@ -41,6 +41,16 @@ def d_calibration_compat(pred_probs, event_indicators, num_bins):
     return pvalue, dcal_hist
 
 
+def d_calibration_statistic(evaluator, num_bins=10):
+    predict_probs = evaluator.predict_probability_from_curve(evaluator.event_times)
+    statistic, _, _ = d_calibration(
+        pred_probs=predict_probs,
+        event_indicators=evaluator.event_indicators,
+        num_bins=num_bins,
+    )
+    return statistic
+
+
 def worst_slab_calibration(evaluator, x_test, t_test, e_test, seed):
     np.random.seed(seed)
     CondCalEvaluation.d_calibration = d_calibration_compat
@@ -104,7 +114,7 @@ def main():
             {
                 "method": scalar_text(outputs["baseline_method"]),
                 "Harrell_CI": evl_base.concordance(method="Harrell")[0],
-                "D_CAL_pvalue": evl_base.d_calibration()[0],
+                "D_CAL_statistic": d_calibration_statistic(evl_base),
                 "WS_cal": worst_slab_calibration(
                     evl_base, x_test, t_test, e_test, seed
                 ),
@@ -112,7 +122,7 @@ def main():
             {
                 "method": scalar_text(outputs["csd_method"]),
                 "Harrell_CI": evl_csd.concordance(method="Harrell")[0],
-                "D_CAL_pvalue": evl_csd.d_calibration()[0],
+                "D_CAL_statistic": d_calibration_statistic(evl_csd),
                 "WS_cal": worst_slab_calibration(
                     evl_csd, x_test, t_test, e_test, seed
                 ),
@@ -120,7 +130,7 @@ def main():
             {
                 "method": scalar_text(outputs["ipot_method"]),
                 "Harrell_CI": evl_ipot.concordance(method="Harrell")[0],
-                "D_CAL_pvalue": evl_ipot.d_calibration()[0],
+                "D_CAL_statistic": d_calibration_statistic(evl_ipot),
                 "WS_cal": worst_slab_calibration(
                     evl_ipot, x_test, t_test, e_test, seed
                 ),
