@@ -21,40 +21,4 @@ repo_url: "https://github.com/slds-lmu/paper_2023_survival_benchmark"
 repo_commit: "bc7c5c26896ee2204ad0757643415ed584382c9a"
 
 ess_ratios: ["1.0", "0.8", "0.6", "0.4", "0.2"]
-datasets:
-  [
-    "CarpenterFdaData",
-    "aids.id",
-    "aids2",
-    "bladder0",
-    "cat_adoption",
-    "channing",
-    "check_times",
-    "child",
-    "colrec",
-    "cost",
-    "dataFTR",
-    "dataSTR",
-    "e1684",
-    "flchain",
-    "gbsg",
-    "grace",
-    "hdfail",
-    "kidtran",
-    "liver",
-    "lung",
-    "metabric",
-    "mgus",
-    "nafld1",
-    "nwtco",
-    "ova",
-    "rdata",
-    "std",
-    "support",
-    "tumor",
-    "uis",
-    "veteran",
-    "wa_churn",
-    "wbc1",
-    "whas",
-  ]
+datasets: ["gbsg", "metabric", "support", "whas"]
