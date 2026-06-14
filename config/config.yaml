@@ -5,7 +5,7 @@ do_shuffle: True
 n_repeats: 5
 subsample_ratio: 0.5
 k_time_bins: 3
-models: ["AFT"]
+models: ["AFT", "CGSA"]
 weighting_modes: ["unweighted", "weighted"]
 
 weighting_suffixes:

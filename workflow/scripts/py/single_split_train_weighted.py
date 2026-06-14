@@ -29,10 +29,15 @@ import pandas as pd
 from icp import ConformalSurvDist, CSDiPOT
 from icp.scorer import QuantileRegressionNC, SurvivalPredictionNC
 from lifelines.fitters.weibull_aft_fitter import WeibullAFTFitter
+from sksurv.ensemble import GradientBoostingSurvivalAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from SurvivalEVAL.Evaluations.util import check_monotonicity
-from utils.util_survival import make_mono_quantiles, survival_data_split
+from utils.util_survival import (
+    format_pred_sksurv,
+    make_mono_quantiles,
+    survival_data_split,
+)
 
 
 def parse_args():
@@ -54,7 +59,7 @@ def parse_args():
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--frac-train", type=float, default=0.6)
-    parser.add_argument("--model", choices=["AFT"], default="AFT")
+    parser.add_argument("--model", choices=["AFT", "CGSA"], default="AFT")
     parser.add_argument("--n-quantiles", type=int, default=9)
     parser.add_argument("--n-sample", type=int, default=1000)
     parser.add_argument(
@@ -186,6 +191,13 @@ def add_time_zero(surv, time_coordinates):
         np.concatenate([np.ones((surv.shape[0], 1)), surv], axis=1),
         np.concatenate([np.array([0.0]), time_coordinates], axis=0),
     )
+
+
+def make_structured_survival_target(time_values, event_values):
+    y = np.zeros(time_values.shape[0], dtype=[("event", bool), ("time", float)])
+    y["event"] = event_values.astype(bool)
+    y["time"] = time_values.astype(float)
+    return y
 
 
 def fit_density_ratio_model(source_features, target_features, seed):
@@ -362,6 +374,19 @@ def main():
         )
         surv_test = surv_df.values.T
         time_coordinates = surv_df.index.values
+    elif args_cli.model == "CGSA":
+        x_train = train_frame.drop(columns=["time", "event"]).values
+        y_train = make_structured_survival_target(
+            train_frame["time"].values, train_frame["event"].values
+        )
+        model = GradientBoostingSurvivalAnalysis(
+            random_state=args_cli.seed
+        )
+        model.fit(x_train, y_train)
+        pred_surv = model.predict_survival_function(
+            test_frame.drop(columns=["time", "event"]).values
+        )
+        surv_test, time_coordinates = format_pred_sksurv(pred_surv)
     else:
         raise ValueError(f"Unsupported model: {args_cli.model}")
 
