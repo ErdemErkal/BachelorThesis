@@ -21,6 +21,34 @@ DEFAULT_WEIGHTING_SUFFIXES = {
 }
 
 
+def comparison_methods(model: str) -> dict[str, list[str]]:
+    return {
+        "csd": [
+            f"Baseline {model}",
+            f"{model} + CSD",
+            f"{model} + weighted CSD",
+        ],
+        "ipot": [
+            f"Baseline {model}",
+            f"{model} + CSD-iPOT",
+            f"{model} + weighted CSD-iPOT",
+        ],
+    }
+
+
+def methods_for_weighting(model: str, weighting: str) -> list[str]:
+    baseline = f"Baseline {model}"
+    if weighting == "unweighted":
+        return [baseline, f"{model} + CSD", f"{model} + CSD-iPOT"]
+    if weighting == "weighted":
+        return [baseline, f"{model} + weighted CSD", f"{model} + weighted CSD-iPOT"]
+
+    methods = [baseline]
+    for comparison_order in comparison_methods(model).values():
+        methods.extend(comparison_order[1:])
+    return methods
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -50,7 +78,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         help=(
             "Metric column to plot. Can be repeated. If omitted, plots "
-            "D_CAL_pvalue and WS_cal when available."
+            "D_CAL_statistic and WS_cal when available."
         ),
     )
     parser.add_argument(
@@ -142,6 +170,36 @@ def split_run_label(
     return run_label, "unweighted"
 
 
+def deduplicate_baseline_rows(data: pd.DataFrame) -> pd.DataFrame:
+    baseline_mask = data["method"].eq("Baseline " + data["model"].astype(str))
+    if not baseline_mask.any():
+        return data
+
+    baseline = data[baseline_mask].copy()
+    non_baseline = data[~baseline_mask]
+
+    baseline["_weighting_rank"] = baseline["weighting"].ne("unweighted").astype(int)
+    baseline = baseline.sort_values(
+        [
+            "dataset",
+            "split_id",
+            "ess",
+            "seed",
+            "model",
+            "method",
+            "_weighting_rank",
+            "source_file",
+        ],
+        kind="mergesort",
+    )
+    baseline = baseline.drop_duplicates(
+        subset=["dataset", "split_id", "ess", "seed", "model", "method"],
+        keep="first",
+    ).drop(columns="_weighting_rank")
+
+    return pd.concat([non_baseline, baseline], ignore_index=True)
+
+
 def read_eval_metrics(
     input_dir: Path,
     pattern: str,
@@ -170,6 +228,11 @@ def read_eval_metrics(
         metrics = pd.read_csv(csv_path)
         metric_cols = [col for col in metric_candidates if col in metrics.columns]
         if not metric_cols:
+            continue
+
+        methods_to_keep = set(methods_for_weighting(model, weighting))
+        metrics = metrics[metrics["method"].isin(methods_to_keep)].copy()
+        if metrics.empty:
             continue
 
         metrics["dataset"] = metadata["dataset"]
@@ -207,7 +270,7 @@ def read_eval_metrics(
             f"these columns: {metric_candidates}"
         )
 
-    return pd.concat(rows, ignore_index=True)
+    return deduplicate_baseline_rows(pd.concat(rows, ignore_index=True))
 
 
 def available_metrics(data: pd.DataFrame, requested_metrics: list[str]) -> list[str]:
@@ -222,6 +285,7 @@ def available_metrics(data: pd.DataFrame, requested_metrics: list[str]) -> list[
 def metric_label(metric: str) -> str:
     labels = {
         "D_CAL_pvalue": "D-calibration p-value",
+        "D_CAL_statistic": "D-calibration test statistic",
         "WS_cal": "Worst-slab calibration score",
         "WorstSlab_D_CAL": "Worst-slab D-calibration score",
     }
@@ -231,6 +295,8 @@ def metric_label(metric: str) -> str:
 def plot_model_scope(
     data: pd.DataFrame,
     model: str,
+    comparison: str,
+    method_order: list[str],
     metric: str,
     output_dir: Path,
     output_format: str,
@@ -238,13 +304,15 @@ def plot_model_scope(
     ess_order: str,
     threshold: float,
     dataset: str | None = None,
-) -> Path:
+) -> Path | None:
     subset = data[data["model"] == model].dropna(subset=[metric]).copy()
     if dataset is not None:
         subset = subset[subset["dataset"] == dataset]
+    subset = subset[subset["method"].isin(method_order)]
     if subset.empty:
-        scope = f"{model} / {dataset}" if dataset is not None else model
-        raise ValueError(f"No finite {metric} values found for {scope}")
+        return None
+
+    hue_order = [method for method in method_order if method in set(subset["method"])]
 
     reverse = ess_order == "desc"
     ess_values = sorted(subset["ess"].unique(), reverse=reverse)
@@ -261,6 +329,7 @@ def plot_model_scope(
         x="ess_label",
         y=metric,
         hue="method",
+        hue_order=hue_order,
         order=ess_labels,
         cut=0,
         inner="quartile",
@@ -273,6 +342,7 @@ def plot_model_scope(
         x="ess_label",
         y=metric,
         hue="method",
+        hue_order=hue_order,
         order=ess_labels,
         dodge=True,
         jitter=0.18,
@@ -289,13 +359,17 @@ def plot_model_scope(
     n_datasets = subset["dataset"].nunique()
     if dataset is None:
         scope_label = f"pooled across {n_datasets} dataset(s)"
-        output_stem = f"{safe_name(model)}_pooled_{safe_name(metric)}_violin"
+        output_stem = (
+            f"{safe_name(model)}_{safe_name(comparison)}"
+            f"_pooled_{safe_name(metric)}_violin"
+        )
     else:
         scope_label = dataset
         output_stem = (
-            f"{safe_name(model)}_{safe_name(dataset)}" f"_{safe_name(metric)}_violin"
+            f"{safe_name(model)}_{safe_name(comparison)}"
+            f"_{safe_name(dataset)}_{safe_name(metric)}_violin"
         )
-    ax.set_title(f"{model} - {metric_label(metric)} - {scope_label}")
+    ax.set_title(f"{model} {comparison} - {metric_label(metric)} - {scope_label}")
     ax.set_xlabel("ESS ratio")
     ax.set_ylabel(metric_label(metric))
     if metric == "D_CAL_pvalue":
@@ -315,7 +389,7 @@ def plot_model_scope(
 
 def main() -> None:
     args = parse_args()
-    requested_metrics = args.metric or ["D_CAL_pvalue", "WS_cal"]
+    requested_metrics = args.metric or ["D_CAL_statistic", "WS_cal"]
     weighting_suffixes = parse_weighting_suffixes(args.weighting_suffix)
     data = read_eval_metrics(
         args.input_dir,
@@ -335,12 +409,15 @@ def main() -> None:
         if metric_data.empty:
             continue
         for model in sorted(metric_data["model"].unique()):
+            comparisons = comparison_methods(model)
             model_data = metric_data[metric_data["model"] == model]
-            for dataset in sorted(model_data["dataset"].unique()):
-                written.append(
-                    plot_model_scope(
+            for comparison, method_order in comparisons.items():
+                for dataset in sorted(model_data["dataset"].unique()):
+                    output_path = plot_model_scope(
                         data=metric_data,
                         model=model,
+                        comparison=comparison,
+                        method_order=method_order,
                         dataset=dataset,
                         metric=metric,
                         output_dir=args.output_dir,
@@ -349,11 +426,14 @@ def main() -> None:
                         ess_order=args.ess_order,
                         threshold=args.threshold if metric == "D_CAL_pvalue" else -1,
                     )
-                )
-            written.append(
-                plot_model_scope(
+                    if output_path is not None:
+                        written.append(output_path)
+
+                output_path = plot_model_scope(
                     data=metric_data,
                     model=model,
+                    comparison=comparison,
+                    method_order=method_order,
                     metric=metric,
                     output_dir=args.output_dir,
                     output_format=args.format,
@@ -361,7 +441,8 @@ def main() -> None:
                     ess_order=args.ess_order,
                     threshold=args.threshold if metric == "D_CAL_pvalue" else -1,
                 )
-            )
+                if output_path is not None:
+                    written.append(output_path)
 
     print(f"Wrote {len(written)} plot(s) to {args.output_dir}")
     for path in written:

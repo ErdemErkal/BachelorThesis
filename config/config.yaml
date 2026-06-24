@@ -39,7 +39,6 @@ datasets:
     "flchain",
     "gbsg",
     "grace",
-    "hdfail",
     "kidtran",
     "liver",
     "lung",
