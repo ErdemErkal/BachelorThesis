@@ -1,0 +1,35 @@
+# Experiment parameters
+seed: 42
+n_splits: 5
+do_shuffle: True
+n_repeats: 1
+k_time_bins: 3
+models: ["AFT"]
+weighting_modes: ["unweighted", "weighted"]
+weighted_density_modes: ["estimated", "oracle"]
+
+weighting_suffixes:
+  unweighted: ""
+  weighted: "_weighted"
+
+train_scripts:
+  unweighted: "workflow/scripts/py/single_split_train.py"
+  weighted: "workflow/scripts/py/single_split_train_weighted.py"
+
+# Data sources
+repo_url: "https://github.com/slds-lmu/paper_2023_survival_benchmark"
+repo_commit: "bc7c5c26896ee2204ad0757643415ed584382c9a"
+
+ess_ratios: ["1.0", "0.8", "0.6", "0.4", "0.2"]
+datasets:
+  [
+    "gbsg",
+    "metabric",
+    "support",
+    "whas",
+  ]
+
+# Rotterdam -> GBSG external validation (natural shift; estimated weights only).
+cross_dataset_name: "rotterdam_gbsg"
+cross_n_splits: 5
+cross_ess_ratios: ["natural"]
